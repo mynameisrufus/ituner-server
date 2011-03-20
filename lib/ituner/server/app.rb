@@ -35,7 +35,7 @@ module ITuner
             only = :all
             name = search_term
           end
-          ITuner.itunes.music.search(name, only)
+          @search_results = ITuner.itunes.music.search(name, only)
         end
 
         def playing?
