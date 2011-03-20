@@ -35,7 +35,7 @@ module ITuner
             only = :all
             name = search_term
           end
-          @search_results = ITuner.itunes.music.search(name, only)
+          ITuner.itunes.music.search(name, only)
         end
 
         def playing?
@@ -46,6 +46,12 @@ module ITuner
           Requests.play_next unless playing? 
         end
 
+        def request_track
+          params["track_uids"].each do |track_uid|
+            track = ITuner::Track.find_by_uid(Integer(track_uid))
+            Requests.add_track(track)
+          end
+        end
       end
 
       get '/style.css' do
@@ -61,13 +67,30 @@ module ITuner
       end
       
       post "/request" do
-        params["track_uids"].each do |track_uid|
-          track = ITuner::Track.find_by_uid(Integer(track_uid))
-          Requests.add_track(track)
-        end
+        request_track
         redirect to("/")
       end
 
+      get '/bb' do # backbone version of index
+        haml :bb
+      end
+      
+      get '/status.json' do
+        ITuner.itunes.current_track.to_json
+      end
+
+      get '/requests.json' do
+        Requests.all.to_json
+      end
+
+      get '/search.json' do
+        search.to_json
+      end
+
+      post '/request.json' do
+        request_track.to_json
+      end
+      
     end
   end
 end
