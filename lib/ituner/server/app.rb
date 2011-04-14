@@ -43,6 +43,7 @@ module ITuner
             :name => track.name,
             :artist => track.artist,
             :album => track.album,
+            :uid => track.uid
           }
         end
 
@@ -55,56 +56,46 @@ module ITuner
         end
 
         def request_track
-          params["track_uids"].each do |track_uid|
-            track = ITuner::Track.find_by_uid(Integer(track_uid))
-            Requests.add_track(track)
-          end
+          uid = params["uid"].to_i
+          track = ITuner::Track.find_by_uid(uid)
+          Requests.add_track(track)
+          keep_playing
         end
       end
 
       get '/style.css' do
         scss :style
       end
-
+      
       get '/' do
         keep_playing
-        if playing?
-          @current_track = ITuner.itunes.current_track
-        end
-        @requests = Requests.all
-        @search_results = search
-        haml :home
+        haml :layout
       end
 
-      get '/search', :provides => 'json' do
+      post '/search' do
         (search || []).map(&method(:track_data)).to_json
       end
       
       post "/request" do
-        request_track
-        redirect to("/")
+        if request_track
+          { success: "track added" }.to_json
+        else
+          { error: "bah boum" }.to_json
+        end
       end
 
-      get '/bb' do # backbone version of index
-        haml :bb
-      end
-      
-      get '/status.json' do
-        ITuner.itunes.current_track.to_json
+      get '/requests' do
+        Requests.all.map(&:track).map(&method(:track_data)).to_json
       end
 
-      get '/requests.json' do
-        Requests.all.to_json
+      get '/status' do
+        current_track = ITuner.itunes.current_track
+        unless current_track.nil?
+          track_data(current_track).to_json
+        else
+          { error: "and there was silence..." }.to_json
+        end
       end
-
-      get '/search.json' do
-        search.to_json
-      end
-
-      post '/request.json' do
-        request_track.to_json
-      end
-      
     end
   end
 end
