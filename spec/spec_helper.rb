@@ -8,6 +8,7 @@ require 'rspec/rails/views/matchers'
 
 require 'ituner/server/app'
 
+
 Capybara.app = ITuner::Server::App
 
 Rspec.configure do |config|

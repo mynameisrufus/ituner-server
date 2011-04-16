@@ -5,14 +5,17 @@ gemspec
 
 gem "ituner", :path => "../ituner"
 gem "json"
+gem "eventmachine", "0.12.10"
 
 group :development do
   gem "thin"
   gem "sinatra-reloader"
 end
 
-gem "rake"
-gem "rspec"
-gem "capybara"
-gem "rspec2-rails-views-matchers"
-gem "launchy"
+group :test do
+  gem "rake"
+  gem "rspec"
+  gem "capybara"
+  gem "rspec2-rails-views-matchers"
+  gem "launchy"
+end
