@@ -17,7 +17,7 @@ module ITuner
         super
       end
 
-      set :environment, :production
+    #  set :environment, :production
       set :app_file, __FILE__
 
       configure(:development) do
@@ -48,10 +48,10 @@ module ITuner
 
         def track_data(track)
           { 
-            :name => track.name,
+            :name   => track.name,
             :artist => track.artist,
-            :album => track.album,
-            :uid => track.uid
+            :album  => track.album,
+            :id     => track.uid
           }
         end
 
@@ -64,7 +64,7 @@ module ITuner
         end
 
         def request_track
-          uid = params["uid"].to_i
+          uid = params["id"].to_i
           track = ITuner::Track.find_by_uid(uid)
           Requests.add_track(track)
         end

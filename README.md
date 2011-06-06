@@ -6,6 +6,10 @@
 
     RACK_ENV=development bundle exec ituner-server
 
+Coffee:
+  
+    coffee --watch -o public/javascripts/ -c app.coffee
+
 ## test
     
     RACK_ENV=test rspec spec/ituner/server/app_spec.rb
