@@ -9,10 +9,13 @@ App.Models.Track = Backbone.Model.extend
   request: ->
     $.ajax
       url: this.url,
+      dataType: 'json',
       type: 'POST',
-      data: this.toJSON(),
-      success: (resp, status, xhr) ->
-        console.log resp
+      data: this.toJSON()
+      success: (body)=>
+        this.trigger('request:success')
+      error: (xhr, type)=>
+        this.trigger('request:failure', type)
 
 App.Models.CurrentTrack = Backbone.Model.extend
   url: '/status'
@@ -32,17 +35,16 @@ App.Collections.Search = Backbone.Collection.extend
       type: 'POST',
       data:
         term: term
-      success: (resp, status, xhr) ->
+      success: (xhr, type) ->
         collection.refresh resp
   request: (id) ->
     this.get(id).request()
 
-App.Views.Status  = Backbone.View.extend
+App.Views.Status = Backbone.View.extend
   id: 'status'
   initialize: ->
     track = new App.Models.CurrentTrack
     track.fetch()
-    console.log track.url
     this.intervalID = setInterval ( => track.fetch() ), 1000
     this.currentTrack = new App.Views.Track model: track
     this.el.appendChild this.currentTrack.render().el
@@ -108,8 +110,10 @@ App.Views.TrackRender = (view, trackView)->
   view.collection.each (track)=>
     newTrack = new trackView model: track
     view.tracks.push newTrack
+  frag = document.createDocumentFragment()
   for track in view.tracks
-    view.el.appendChild track.render().el
+    frag.appendChild track.render().el
+  view.el.appendChild frag
 
 App.Views.SearchResults = Backbone.View.extend
   id: 'search-results'
@@ -144,7 +148,7 @@ App.Views.Requests = Backbone.View.extend
 App.Views.Track = Backbone.View.extend
   className: "track"
   template: (track)->
-    "<h3>#{track.name}</h3><p>#{track.artist} - <span>#{track.album}</span></p>"
+    "<h3>#{track.name || '--'}</h3><p>#{track.artist || '--'} - <span>#{track.album || '--'}</span></p>"
   render: ->
     this.el.innerHTML = this.template this.model.toJSON()
     this
