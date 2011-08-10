@@ -1,10 +1,8 @@
-App = {}
-App.Collections = {}
-App.Models      = {}
-App.Views       = {}
-App.Controllers = {}
+Models = {}
+Collections = {}
+Views= {}
 
-App.Models.Track = Backbone.Model.extend
+class Models.Track extends Backbone.Model
   url: '/request'
   request: ->
     $.ajax
@@ -17,43 +15,56 @@ App.Models.Track = Backbone.Model.extend
       error: (xhr, type)=>
         this.trigger('request:failure', type)
 
-App.Models.CurrentTrack = Backbone.Model.extend
+class Models.CurrentTrack extends Backbone.Model
   url: '/status'
 
-App.Collections.Requests = Backbone.Collection.extend
-  model: App.Models.Track
+class Collections.Requests extends Backbone.Collection
+  model: Models.Track
   url: '/requests'
 
-App.Collections.Search = Backbone.Collection.extend
-  model: App.Models.Track
+class Collections.Search extends Backbone.Collection
+  model: Models.Track
   url: '/search'
   search: (term)->
-    collection = this
-    $.ajax
-      url: this.url,
-      dataType: 'json',
-      type: 'POST',
+    this.fetch
       data:
         term: term
-      success: (xhr, type) ->
-        collection.refresh resp
+      error: (xhr, type) ->
+        alert 'server error'
   request: (id) ->
     this.get(id).request()
 
-App.Views.Status = Backbone.View.extend
+class Views.Track extends Backbone.View
+  className: "track"
+  template: (track)->
+    "<h3>#{track.name || '--'}</h3><p>#{track.artist || '--'} - <span>#{track.album || '--'}</span></p>"
+  render: ->
+    this.el.innerHTML = this.template this.model.toJSON()
+    this
+
+class Views.SearchTrack extends Views.Track
+  events:
+    'click': 'request'
+  request: ->
+    unless this.requested
+      this.el.className = this.className + ' requested'
+      this.model.request()
+    this.requested = true
+
+class Views.Status extends Backbone.View
   id: 'status'
   initialize: ->
-    track = new App.Models.CurrentTrack
+    track = new Models.CurrentTrack
     track.fetch()
     this.intervalID = setInterval ( => track.fetch() ), 1000
-    this.currentTrack = new App.Views.Track model: track
+    this.currentTrack = new Views.Track model: track
     this.el.appendChild this.currentTrack.render().el
     track.bind 'change', =>
       this.currentTrack.render()
   render: ->
     this
 
-App.Views.Actions = Backbone.View.extend
+class Views.Actions extends Backbone.View
   id: 'actions'
   initialize: ->
     this.searches = document.createElement 'button'
@@ -69,11 +80,11 @@ App.Views.Actions = Backbone.View.extend
   render: ->
     this
 
-App.Views.Search = Backbone.View.extend
+class Views.Search extends Backbone.View
   id: 'search'
   initialize: ->
     this.button = this.make "button", {}, "Find"
-    this.searchBox = new App.Views.SearchBox
+    this.searchBox = new Views.SearchBox
     this.button.addEventListener 'click', =>
       this.search()
     this.searchBox.bind 'search', =>
@@ -86,7 +97,7 @@ App.Views.Search = Backbone.View.extend
   render: ->
     this
 
-App.Views.SearchBox = Backbone.View.extend
+class Views.SearchBox extends Backbone.View
   tagName: "input"
   value: "key words..."
   className: "waiting"
@@ -103,37 +114,39 @@ App.Views.SearchBox = Backbone.View.extend
     this.el.value = this.value
     this
 
-App.Views.TrackRender = (view, trackView)->
-  for track in view.tracks
-    view.el.removeChild track.el
-  view.tracks = []
-  view.collection.each (track)=>
-    newTrack = new trackView model: track
-    view.tracks.push newTrack
-  frag = document.createDocumentFragment()
-  for track in view.tracks
-    frag.appendChild track.render().el
-  view.el.appendChild frag
-
-App.Views.SearchResults = Backbone.View.extend
-  id: 'search-results'
+class Views.Table extends Backbone.View
+  tracks: []
   initialize: ->
-    this.tracks = []
-    this.collection.bind 'refresh', => this.render()
+    @collection.bind 'reset', => this.render()
+  buildTracks: ->
+    for track in @tracks
+      @el.removeChild track.el
+    @tracks = []
+    console.log this
+    for model in @collection.models
+      newTrack = new @cell model: model
+      @tracks.push newTrack
+    frag = document.createDocumentFragment()
+    for track in @tracks
+      frag.appendChild track.render().el
+    @el.appendChild frag
+    this
+
+class Views.SearchResults extends Views.Table
+  id: 'search-results'
+  cell: Views.SearchTrack
   hide: ->
     $(this.el).hide()
   show: ->
     $(this.el).show()
   render: ->
-    App.Views.TrackRender(this, App.Views.SearchTrack)
+    this.buildTracks()
     $(this.el).show()
     this
 
-App.Views.Requests = Backbone.View.extend
+class Views.Requests extends Views.Table
   id: 'requests'
-  initialize: ->
-    this.tracks = []
-    this.collection.bind 'refresh', => this.render()
+  cell: Views.Track
   hide: ->
     $(this.el).hide()
     clearInterval(this.intervalID)
@@ -142,36 +155,19 @@ App.Views.Requests = Backbone.View.extend
     this.collection.fetch()
     this.intervalID = setInterval ( => this.collection.fetch() ), 5000
   render: ->
-    App.Views.TrackRender(this, App.Views.Track)
+    this.buildTracks()
     this
 
-App.Views.Track = Backbone.View.extend
-  className: "track"
-  template: (track)->
-    "<h3>#{track.name || '--'}</h3><p>#{track.artist || '--'} - <span>#{track.album || '--'}</span></p>"
-  render: ->
-    this.el.innerHTML = this.template this.model.toJSON()
-    this
-
-App.Views.SearchTrack = App.Views.Track.extend
-  events:
-    'click': 'request'
-  request: ->
-    unless this.requested
-      this.el.className = this.className + ' requested'
-      this.model.request()
-    this.requested = true
-
-App.Views.Player = Backbone.View.extend
+class Views.Player extends Backbone.View
   id: 'player'
   initialize: ->
-    searchedTracks     = new App.Collections.Search
-    requestedTracks    = new App.Collections.Requests
-    this.status        = new App.Views.Status
-    this.actions       = new App.Views.Actions
-    this.search        = new App.Views.Search collection: searchedTracks
-    this.searchResults = new App.Views.SearchResults collection: searchedTracks
-    this.requests      = new App.Views.Requests collection: requestedTracks
+    searchedTracks     = new Collections.Search
+    requestedTracks    = new Collections.Requests
+    this.status        = new Views.Status
+    this.actions       = new Views.Actions
+    this.search        = new Views.Search collection: searchedTracks
+    this.searchResults = new Views.SearchResults collection: searchedTracks
+    this.requests      = new Views.Requests collection: requestedTracks
     this.searchResults.hide()
     this.search.bind 'search', =>
       this.requests.hide()
@@ -190,10 +186,9 @@ App.Views.Player = Backbone.View.extend
   render: ->
     this
 
-App.Controllers.Player = Backbone.Controller.extend
-  initialize: ->
-    this.player = new App.Views.Player
-    document.body.appendChild this.player.render().el
+Player = ->
+  @player = new Views.Player
+  document.body.appendChild @player.render().el
 
-$(document).ready ->
-  new App.Controllers.Player
+$ ->
+  new Player

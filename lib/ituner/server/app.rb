@@ -137,7 +137,7 @@ module ITuner
       
       # == return collections
       #
-      post '/search' do
+      get '/search' do
         (search || []).map(&method(:track_data)).to_json
       end
 
